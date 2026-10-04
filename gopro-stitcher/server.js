@@ -33,6 +33,7 @@ function sortedClips() {
   return Object.values(library).sort((a, b) => compareGoPro(a.name, b.name));
 }
 
+const RESOLUTIONS = { '1080': 1080, '720': 720 };
 const jobs = new Map();
 const ID_RE = /^[a-f0-9]{16}$/;
 const newId = () => crypto.randomBytes(8).toString('hex');
@@ -166,9 +167,14 @@ async function handleStitch(req, res) {
   const clips = ids.map((id) => library[id]);
   if (clips.some((c) => !c)) return sendJson(res, 400, { error: 'Unknown clip in selection' });
 
+  const maxHeight = RESOLUTIONS[body.resolution] || null;
+  const downscale = ff.needsDownscale(clips, maxHeight);
   const compatible = ff.canStreamCopy(clips);
   let mode = body.mode === 'reencode' ? 'reencode' : body.mode === 'copy' ? 'copy' : 'auto';
-  if (mode === 'auto') mode = compatible ? 'copy' : 'reencode';
+  if (mode === 'auto') mode = compatible && !downscale ? 'copy' : 'reencode';
+  if (mode === 'copy' && downscale) {
+    return sendJson(res, 400, { error: 'Changing the resolution needs a re-encode. Pick Automatic or Re-encode.' });
+  }
   if (mode === 'copy' && !compatible) {
     return sendJson(res, 400, {
       error: 'These clips have different formats (resolution, frame rate or codec), so they cannot be joined losslessly. Use re-encode.',
@@ -182,6 +188,7 @@ async function handleStitch(req, res) {
     status: 'running',
     progress: 0,
     mode,
+    resolution: maxHeight ? `${maxHeight}p` : 'original',
     outputName: outName,
     clipCount: clips.length,
     duration: clips.reduce((s, c) => s + c.duration, 0),
@@ -196,6 +203,7 @@ async function handleStitch(req, res) {
     outFile,
     listFile,
     mode,
+    maxHeight,
     onProgress: (p) => (job.progress = p),
   });
   jobs.set(id, { job, cancel: run.cancel, outFile });
@@ -247,7 +255,10 @@ async function handle(req, res) {
   if (p === '/api/check' && req.method === 'POST') {
     const body = await readJson(req).catch(() => ({}));
     const clips = (body.ids || []).map((id) => library[id]).filter(Boolean);
-    return sendJson(res, 200, { canCopy: ff.canStreamCopy(clips) });
+    return sendJson(res, 200, {
+      canCopy: ff.canStreamCopy(clips),
+      downscale: ff.needsDownscale(clips, RESOLUTIONS[body.resolution] || null),
+    });
   }
   if (p === '/api/stitch' && req.method === 'POST') return handleStitch(req, res);
   if ((match = m(/^\/api\/jobs\/([a-f0-9]+)$/))) {

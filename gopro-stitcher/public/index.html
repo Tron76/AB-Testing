@@ -47,6 +47,14 @@
           <span>File name</span>
           <input id="output-name" type="text" placeholder="my-gopro-video">
         </label>
+        <label class="field">
+          <span>Resolution</span>
+          <select id="resolution">
+            <option value="original">Original (keep 4K / 2.7K)</option>
+            <option value="1080">1080p Full HD (easier to share)</option>
+            <option value="720">720p (smallest file)</option>
+          </select>
+        </label>
         <fieldset class="field">
           <legend>Quality</legend>
           <label><input type="radio" name="mode" value="auto" checked> Automatic <small>(lossless when possible)</small></label>

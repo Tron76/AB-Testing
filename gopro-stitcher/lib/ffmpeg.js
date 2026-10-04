@@ -87,10 +87,28 @@ function buildCopyArgs(listFile, outFile, clips) {
   return args;
 }
 
-function buildReencodeArgs(paths, outFile, clips) {
-  // Target the first clip's resolution and frame rate; letterbox others.
-  const W = clips[0].width;
-  const H = clips[0].height;
+// Output size: the first clip's size, shrunk (keeping aspect ratio) so its
+// shorter side is at most maxHeight (e.g. 1080 turns 4K into 1080p).
+function targetSize(clip, maxHeight) {
+  let W = clip.width;
+  let H = clip.height;
+  const short = Math.min(W, H);
+  if (maxHeight && short > maxHeight) {
+    const k = maxHeight / short;
+    W = Math.round((W * k) / 2) * 2;
+    H = Math.round((H * k) / 2) * 2;
+  }
+  return { W, H };
+}
+
+function needsDownscale(clips, maxHeight) {
+  return Boolean(maxHeight) && clips.some((c) => Math.min(c.width, c.height) > maxHeight);
+}
+
+function buildReencodeArgs(paths, outFile, clips, maxHeight) {
+  // Target the first clip's resolution (optionally downscaled) and frame
+  // rate; letterbox others.
+  const { W, H } = targetSize(clips[0], maxHeight);
   const fps = clips[0].fps || 30;
   const args = ['-y', '-v', 'error', '-nostats', '-progress', 'pipe:1'];
   paths.forEach((p) => args.push('-i', p));
@@ -114,7 +132,8 @@ function buildReencodeArgs(paths, outFile, clips) {
   args.push(
     '-filter_complex', filters.join(';'),
     '-map', '[outv]', '-map', '[outa]',
-    '-c:v', 'libx264', '-preset', process.env.X264_PRESET || 'medium', '-crf', '18',
+    // Downscaled "share" exports use a slightly higher CRF for smaller files.
+    '-c:v', 'libx264', '-preset', process.env.X264_PRESET || 'medium', '-crf', maxHeight ? '21' : '18',
     '-c:a', 'aac', '-b:a', '192k',
     '-movflags', '+faststart',
     outFile
@@ -124,14 +143,14 @@ function buildReencodeArgs(paths, outFile, clips) {
 
 // Runs the stitch and reports progress (0..1) via onProgress.
 // Returns { promise, cancel }.
-function stitch({ paths, clips, outFile, listFile, mode, onProgress }) {
+function stitch({ paths, clips, outFile, listFile, mode, maxHeight, onProgress }) {
   const total = clips.reduce((s, c) => s + (c.duration || 0), 0);
   let args;
   if (mode === 'copy') {
     fs.writeFileSync(listFile, concatListFile(paths));
     args = buildCopyArgs(listFile, outFile, clips);
   } else {
-    args = buildReencodeArgs(paths, outFile, clips);
+    args = buildReencodeArgs(paths, outFile, clips, maxHeight);
   }
 
   const proc = spawn(FFMPEG, args);
@@ -163,4 +182,4 @@ function stitch({ paths, clips, outFile, listFile, mode, onProgress }) {
   return { promise, cancel: () => proc.kill('SIGTERM') };
 }
 
-module.exports = { probe, thumbnail, canStreamCopy, concatListFile, buildCopyArgs, buildReencodeArgs, stitch, run, FFMPEG };
+module.exports = { probe, thumbnail, canStreamCopy, needsDownscale, targetSize, concatListFile, buildCopyArgs, buildReencodeArgs, stitch, run, FFMPEG };

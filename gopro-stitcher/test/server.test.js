@@ -105,6 +105,42 @@ test('re-encodes mismatched clips', async () => {
   assert.strictEqual(job.mode, 'reencode');
 });
 
+test('downscales to a smaller resolution', async () => {
+  const a = await upload(await makeClip('hd1.mp4', { seconds: 1, size: '1920x1080' }));
+  const b = await upload(await makeClip('hd2.mp4', { seconds: 1, size: '1920x1080' }));
+
+  // Downscaling can't be done losslessly.
+  const bad = await fetch(`${base}/api/stitch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids: [a.id, b.id], mode: 'copy', resolution: '720' }),
+  });
+  assert.strictEqual(bad.status, 400);
+
+  const job = await stitchAndWait({ ids: [a.id, b.id], mode: 'auto', resolution: '720' });
+  assert.strictEqual(job.status, 'done', job.error);
+  assert.strictEqual(job.mode, 'reencode');
+  assert.strictEqual(job.resolution, '720p');
+  const out = path.join(tmp, 'small.mp4');
+  fs.writeFileSync(out, Buffer.from(await (await fetch(`${base}/api/jobs/${job.id}/download`)).arrayBuffer()));
+  const meta = await ff.probe(out);
+  assert.deepStrictEqual([meta.width, meta.height], [1280, 720]);
+  assert.ok(Math.abs(meta.duration - 2) < 0.3, `duration ${meta.duration}`);
+
+  // Clips already at or below the target stay lossless.
+  const small = await upload(await makeClip('sd.mp4', { seconds: 1, size: '640x360' }));
+  const keep = await stitchAndWait({ ids: [small.id], mode: 'auto', resolution: '1080' });
+  assert.strictEqual(keep.mode, 'copy');
+});
+
+test('targetSize shrinks 4K to 1080p keeping aspect ratio', () => {
+  assert.deepStrictEqual(ff.targetSize({ width: 3840, height: 2160 }, 1080), { W: 1920, H: 1080 });
+  assert.deepStrictEqual(ff.targetSize({ width: 2704, height: 1520 }, 1080), { W: 1922, H: 1080 });
+  assert.deepStrictEqual(ff.targetSize({ width: 3840, height: 2880 }, 1080), { W: 1440, H: 1080 });
+  assert.deepStrictEqual(ff.targetSize({ width: 1920, height: 1080 }, 1080), { W: 1920, H: 1080 });
+  assert.deepStrictEqual(ff.targetSize({ width: 3840, height: 2160 }, null), { W: 3840, H: 2160 });
+});
+
 test('rejects non-video uploads', async () => {
   const res = await fetch(`${base}/api/upload`, {
     method: 'POST',

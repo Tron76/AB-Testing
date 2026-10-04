@@ -177,10 +177,16 @@ async function checkCompat() {
   const out = $('#compat');
   if (!state.sequence.length) { out.textContent = ''; return; }
   const mine = ++compatSeq;
-  const { canCopy } = await api('POST', '/api/check', { ids: state.sequence }).catch(() => ({}));
+  const resolution = $('#resolution').value;
+  const { canCopy, downscale } = await api('POST', '/api/check', { ids: state.sequence, resolution }).catch(() => ({}));
   if (mine !== compatSeq) return;
   const mode = document.querySelector('input[name=mode]:checked').value;
-  if (canCopy) {
+  if (downscale) {
+    out.className = mode === 'copy' ? 'compat err' : 'compat ok';
+    out.textContent = mode === 'copy'
+      ? 'Changing the resolution needs a re-encode, so lossless join isn’t possible. Pick Automatic or Re-encode.'
+      : `Video will be scaled down to ${resolution}p (H.264) — smaller and easy to share. This re-encodes, so it takes a while.`;
+  } else if (canCopy) {
     out.className = 'compat ok';
     out.textContent = mode === 'reencode'
       ? 'Clips match — lossless join would also work and is much faster.'
@@ -193,6 +199,14 @@ async function checkCompat() {
   }
 }
 document.querySelectorAll('input[name=mode]').forEach((r) => r.addEventListener('change', checkCompat));
+$('#resolution').addEventListener('change', () => {
+  try { localStorage.setItem('gopro-resolution', $('#resolution').value); } catch {}
+  checkCompat();
+});
+try {
+  const saved = localStorage.getItem('gopro-resolution');
+  if (saved && $(`#resolution option[value="${saved}"]`)) $('#resolution').value = saved;
+} catch {}
 
 // ---- library actions ----
 async function loadClips() {
@@ -308,9 +322,10 @@ window.addEventListener('drop', (e) => e.preventDefault());
 $('#stitch').addEventListener('click', async () => {
   const mode = document.querySelector('input[name=mode]:checked').value;
   const outputName = $('#output-name').value.trim();
+  const resolution = $('#resolution').value;
   let job;
   try {
-    job = await api('POST', '/api/stitch', { ids: state.sequence, mode, outputName });
+    job = await api('POST', '/api/stitch', { ids: state.sequence, mode, outputName, resolution });
   } catch (e) {
     return alert(e.message);
   }
@@ -352,7 +367,8 @@ function showJob() {
   status.className = '';
   $('#job-progress').value = j.progress || 0;
   if (j.status === 'running') {
-    const how = j.mode === 'copy' ? 'Joining losslessly' : 'Re-encoding';
+    const how = j.mode === 'copy' ? 'Joining losslessly'
+      : j.resolution !== 'original' ? `Converting to ${j.resolution}` : 'Re-encoding';
     status.textContent = `${how}… ${Math.round((j.progress || 0) * 100)}%`;
   } else if (j.status === 'done') {
     status.textContent = `Done — ${j.outputName} (${fmtSize(j.size)}, ${fmtDuration(j.duration)})`;

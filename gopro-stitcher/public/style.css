@@ -133,7 +133,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .field legend { padding: 0; margin-bottom: 4px; }
 .field label { display: block; margin: 2px 0; }
 .field small { color: var(--muted); }
-input[type=text] {
+input[type=text], select {
   font: inherit;
   padding: 8px 10px;
   border-radius: 8px;

@@ -9,6 +9,7 @@ A small web app for joining GoPro clips into one video. Upload your files, pick 
 - **Choose clips and their order.** Add clips to "Your video", then drag to reorder or use the ↑ ↓ buttons. You can use a clip more than once. "Add all in order" adds the whole library in recording order.
 - **Preview** any clip by clicking its thumbnail, and preview the finished video before downloading.
 - **Lossless join by default.** Clips from the same camera and settings are joined with stream copy: no quality loss, and it takes seconds even for long videos. HEVC output is tagged so it plays in QuickTime, Photos and on iPhone.
+- **Downscale for sharing.** Pick *1080p* or *720p* to turn 4K / 2.7K footage into a smaller H.264 file that's easy to send or upload. Aspect ratio is kept, and clips already at or below the chosen size aren't touched.
 - **Re-encode fallback** for mixed clips (different resolution, frame rate or codec). Everything is scaled and letterboxed to match the first clip, and encoded as H.264/AAC.
 
 ## Requirements
