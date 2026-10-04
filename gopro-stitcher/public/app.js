@@ -323,10 +323,22 @@ $('#stitch').addEventListener('click', async () => {
   const mode = document.querySelector('input[name=mode]:checked').value;
   const outputName = $('#output-name').value.trim();
   const resolution = $('#resolution').value;
+  // Clear the previous result straight away so its download link can't be
+  // mistaken for the new video while the request is in flight.
+  state.job = null;
+  $('#stitch').disabled = true;
+  $('#job').hidden = false;
+  $('#job-result').hidden = true;
+  $('#job-cancel').hidden = true;
+  $('#job-status').className = '';
+  $('#job-status').textContent = 'Starting…';
+  $('#job-progress').value = 0;
   let job;
   try {
     job = await api('POST', '/api/stitch', { ids: state.sequence, mode, outputName, resolution });
   } catch (e) {
+    $('#job').hidden = true;
+    renderSequence();
     return alert(e.message);
   }
   state.job = job;
