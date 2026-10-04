@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GoPro Stitcher</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>GoPro Stitcher</h1>
+    <p class="sub">Upload clips, pick the ones you want, put them in order, and join them into one video.</p>
+  </header>
+
+  <main>
+    <section class="panel" id="library-panel">
+      <div class="panel-head">
+        <h2>1. Your clips</h2>
+        <button id="add-all" class="secondary" disabled>Add all in order</button>
+      </div>
+
+      <label id="dropzone" class="dropzone">
+        <input id="file-input" type="file" accept="video/*,.mp4,.MP4,.mov,.MOV" multiple hidden>
+        <strong>Drop GoPro files here</strong>
+        <span>or click to choose (.MP4)</span>
+      </label>
+
+      <ul id="uploads" class="uploads"></ul>
+      <ul id="library" class="clip-list"></ul>
+      <p id="library-empty" class="empty">No clips uploaded yet.</p>
+    </section>
+
+    <section class="panel" id="sequence-panel">
+      <div class="panel-head">
+        <h2>2. Your video</h2>
+        <button id="clear-seq" class="secondary" disabled>Clear</button>
+      </div>
+      <p class="hint">Drag clips to reorder, or use the arrows.</p>
+      <ol id="sequence" class="clip-list sequence"></ol>
+      <p id="sequence-empty" class="empty">Add clips from the left.</p>
+
+      <div class="summary" id="summary"></div>
+
+      <div class="export">
+        <h2>3. Stitch</h2>
+        <label class="field">
+          <span>File name</span>
+          <input id="output-name" type="text" placeholder="my-gopro-video">
+        </label>
+        <label class="field">
+          <span>Resolution</span>
+          <select id="resolution">
+            <option value="original">Original (keep 4K / 2.7K)</option>
+            <option value="1080">1080p Full HD (easier to share)</option>
+            <option value="720">720p (smallest file)</option>
+          </select>
+        </label>
+        <fieldset class="field">
+          <legend>Quality</legend>
+          <label><input type="radio" name="mode" value="auto" checked> Automatic <small>(lossless when possible)</small></label>
+          <label><input type="radio" name="mode" value="copy"> Lossless join <small>(fast, clips must match)</small></label>
+          <label><input type="radio" name="mode" value="reencode"> Re-encode <small>(slower, works with mixed clips)</small></label>
+        </fieldset>
+        <p id="compat" class="compat"></p>
+        <button id="stitch" class="primary" disabled>Stitch video</button>
+      </div>
+
+      <div id="job" class="job" hidden>
+        <div class="job-row">
+          <span id="job-status">Stitching…</span>
+          <button id="job-cancel" class="link">Cancel</button>
+        </div>
+        <progress id="job-progress" max="1" value="0"></progress>
+        <div id="job-result" hidden>
+          <video id="job-video" controls preload="metadata"></video>
+          <a id="job-download" class="primary button" href="#">Download video</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="preview">
+    <video id="preview-video" controls></video>
+    <form method="dialog"><button class="secondary">Close</button></form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
